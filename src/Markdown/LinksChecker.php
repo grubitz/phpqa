@@ -12,6 +12,7 @@ use RecursiveRegexIterator;
 use RegexIterator;
 use RuntimeException;
 use Throwable;
+use function is_dir;
 
 final class LinksChecker
 {
@@ -61,7 +62,7 @@ final class LinksChecker
     {
         $files = [];
         $dir   = $projectRootDirectory . '/docs';
-        if (!\is_dir($dir)) {
+        if (!is_dir($dir)) {
             return $files;
         }
         $directory = new RecursiveDirectoryIterator($dir);
@@ -69,10 +70,10 @@ final class LinksChecker
         $regex     = new RegexIterator(
             $recursive,
             '/^.+\.md/i',
-            RecursiveRegexIterator::GET_MATCH
+            RegexIterator::GET_MATCH
         );
         foreach ($regex as $file) {
-            if ($file[0] !== '') {
+            if (is_array($file) && $file[0] !== '') {
                 $files[] = $file[0];
             }
         }

@@ -6,7 +6,7 @@
 
 Brings in PHPStan 0.12 which is great
 
-However you will need to do the following:
+However, you will need to do the following:
 
 
 # Remove PHPStan symlinks before upgrading
@@ -41,7 +41,6 @@ It runs tools in a logical order and will fail as quickly as possible.
 
 PHPQA has only been tested on Linux.
 
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/884a284be5cd4dd3a49c199119385f58)](https://www.codacy.com/app/edmondscommerce/phpqa?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=edmondscommerce/phpqa&amp;utm_campaign=Badge_Grade) 
 [![Build Status](https://travis-ci.org/edmondscommerce/phpqa.svg?branch=master)](https://travis-ci.org/edmondscommerce/phpqa)
 [![Code Coverage](https://scrutinizer-ci.com/g/edmondscommerce/phpqa/badges/coverage.png?b=master)](https://scrutinizer-ci.com/g/edmondscommerce/phpqa/?branch=master)
 
