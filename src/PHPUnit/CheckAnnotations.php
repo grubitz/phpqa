@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace EdmondsCommerce\PHPQA\PHPUnit;
 
-use Generator;
 use InvalidArgumentException;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -14,7 +13,7 @@ use SplFileInfo;
  * Class CheckForLargeAndMediumAnnotations.
  *
  * This class checks a test directory structure and if it is using the Edmonds Commerce recommended style of a
- * `Large`,`Medium` and `Large` sub directory structure, then we will also ensure that the large and medium tests are
+ * `Large`,`Medium` and `Large` subdirectory structure, then we will also ensure that the large and medium tests are
  * correctly annotated
  */
 final class CheckAnnotations
@@ -34,7 +33,7 @@ final class CheckAnnotations
     private $smallPath;
 
     /**
-     * @var array[]
+     * @var array<string,array<string>>
      */
     private $errors = [];
 
@@ -42,7 +41,7 @@ final class CheckAnnotations
      * Check the Large and Medium directories, if they exist,
      * and then assert that all tests have the correct annotation.
      *
-     * @return array[] of errors
+     * @return array<string,array<string>> of errors
      */
     public function main(string $pathToTestsDirectory): array
     {
@@ -72,7 +71,7 @@ final class CheckAnnotations
     private function checkDirectory(string $path, string $annotation): void
     {
         foreach ($this->yieldTestFilesInPath($path) as $fileInfo) {
-            if (\strpos($fileInfo->getFilename(), 'Test.php') === false) {
+            if (!str_contains($fileInfo->getFilename(), 'Test.php')) {
                 continue;
             }
             $this->checkFile($fileInfo, $annotation);
@@ -80,12 +79,14 @@ final class CheckAnnotations
     }
 
     /**
-     * @return Generator|SplFileInfo[]
+     * @param string $path
+     * @return iterable<SplFileInfo>
      */
-    private function yieldTestFilesInPath(string $path): Generator
+    private function yieldTestFilesInPath(string $path): iterable
     {
         $recursiveDirectoryIterator = new RecursiveDirectoryIterator($path);
         $iterator                   = new RecursiveIteratorIterator($recursiveDirectoryIterator);
+        /** @var SplFileInfo $fileInfo */
         foreach ($iterator as $fileInfo) {
             yield $fileInfo;
         }
@@ -100,9 +101,7 @@ final class CheckAnnotations
 
         $matches = [];
         \preg_match_all(
-            <<<REGEXP
-                %(?<docblock>/\\*(?:[^*]|\n|(?:\\*(?:[^/]|\n)))*\\*/|\n)\\s+?public\\s+?function\\s+?(?<method>.+?)\\(%
-                REGEXP
+     "%(?<docblock>/\\*(?:[^*]|\\n|\\*(?:[^/]|\\n))*\\*/|\\n)\\s+?public\\s+?function\\s+?(?<method>.+?)\\(%"
             . 'si',
             $contents,
             $matches
@@ -136,9 +135,7 @@ final class CheckAnnotations
     {
         $matches = [];
         \preg_match_all(
-            <<<REGEXP
-                %(?<docblock>/\\*(?:[^*]|\n|(?:\\*(?:[^/]|\n)))*\\*/)\\s+?(final |)class\\s+?(?<classname>.+?)\\s+?extends%
-                REGEXP
+     "%(?<docblock>/\\*(?:[^*]|\\n|\\*(?:[^/]|\\n)))*\\*/\\s+?(final |)class\\s+?(?<classname>.+?)\\s+?extends%"
             . 'si',
             $fileContent,
             $matches

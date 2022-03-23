@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace EdmondsCommerce\PHPQA;
 
 use Exception;
+use FilesystemIterator;
 use Generator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -17,49 +18,49 @@ final class Psr4Validator
     /**
      * @var string
      */
-    private $pathToProjectRoot;
+    private string $pathToProjectRoot;
     /**
-     * @var array|array[]
+     * @var array<string, array<mixed>>
      */
-    private $decodedComposerJson;
-    /**
-     * @var array|string[]
-     */
-    private $parseErrors = [];
-    /**
-     * @var array|array[]
-     */
-    private $psr4Errors = [];
+    private array $decodedComposerJson;
     /**
      * @var array|string[]
      */
-    private $ignoreRegexPatterns;
+    private array $parseErrors = [];
+    /**
+     * @var array<string, array<array<string,mixed>>>
+     */
+    private array $psr4Errors = [];
     /**
      * @var array|string[]
      */
-    private $ignoredFiles = [];
+    private array $ignoreRegexPatterns;
     /**
      * @var array|string[]
      */
-    private $missingPaths = [];
+    private array $ignoredFiles = [];
+    /**
+     * @var array|string[]
+     */
+    private array $missingPaths = [];
 
     /**
      * Psr4Validator constructor.
      *
      * @param array|string[] $ignoreRegexPatterns Set of regex patterns used to exclude files or directories
-     * @param array|array[]  $decodedComposerJson
+     * @param array<string, array<mixed>> $decodedComposerJson
      */
     public function __construct(array $ignoreRegexPatterns, string $pathToProjectRoot, array $decodedComposerJson)
     {
         $this->ignoreRegexPatterns = $ignoreRegexPatterns;
-        $this->pathToProjectRoot   = $pathToProjectRoot;
+        $this->pathToProjectRoot = $pathToProjectRoot;
         $this->decodedComposerJson = $decodedComposerJson;
     }
 
     /**
+     * @return array<string, mixed>
      * @throws Exception
      *
-     * @return array[]
      */
     public function main(): array
     {
@@ -91,23 +92,24 @@ final class Psr4Validator
      */
     private function loop(): void
     {
+        /**
+         * @var string $absPathRoot
+         * @var string $namespaceRoot
+         * @var SplFileInfo $fileInfo
+         */
         foreach ($this->yieldPhpFilesToCheck() as [$absPathRoot, $namespaceRoot, $fileInfo]) {
             $this->check($absPathRoot, $namespaceRoot, $fileInfo);
         }
     }
 
     /**
-     * @throws Exception
-     *
-     * @return Generator|mixed[]
-     * @SuppressWarnings(PHPMD.StaticAccess)
-     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     * @return Generator<array{string, string, SplFileInfo}>
      */
     private function yieldPhpFilesToCheck(): Generator
     {
         $json = $this->decodedComposerJson;
         foreach (['autoload', 'autoload-dev'] as $autoload) {
-            if (!isset($json[$autoload]['psr-4'])) {
+            if (!isset($json[$autoload]['psr-4']) || !is_array($json[$autoload]['psr-4'])) {
                 continue;
             }
             $psr4 = $json[$autoload]['psr-4'];
@@ -116,7 +118,7 @@ final class Psr4Validator
                     $paths = [$paths];
                 }
                 foreach ($paths as $path) {
-                    $absPathRoot     = $this->pathToProjectRoot . '/' . $path;
+                    $absPathRoot = $this->pathToProjectRoot . '/' . $path;
                     $realAbsPathRoot = \realpath($absPathRoot);
                     if ($realAbsPathRoot === false) {
                         $this->addMissingPathError($path, $namespaceRoot, $absPathRoot);
@@ -150,25 +152,20 @@ final class Psr4Validator
         $invalidPathMessage = "Namespace root '{$namespaceRoot}'\ncontains a path '{$path}'\nwhich doesn't exist\n";
         if (\stripos($absPathRoot, 'Magento') !== false) {
             $invalidPathMessage .= 'Magento\'s composer includes this by default, '
-                                   . 'it should be removed from the psr-4 section';
+                . 'it should be removed from the psr-4 section';
         }
         $this->missingPaths[$path] = $invalidPathMessage;
     }
 
     /**
-     * @return SplHeap|SplFileInfo[]
-     * @SuppressWarnings(PHPMD.UndefinedVariable) - phpmd cant handle the anon class
+     * @param string $realPath
+     * @return SplHeap<SplFileInfo>
+     * @SuppressWarnings(PHPMD.UndefinedVariable) - phpmd can't handle the anon class
      */
     private function getDirectoryIterator(string $realPath): SplHeap
     {
-        $directoryIterator = new RecursiveDirectoryIterator(
-            $realPath,
-            RecursiveDirectoryIterator::SKIP_DOTS
-        );
-        $iterator          = new RecursiveIteratorIterator(
-            $directoryIterator,
-            RecursiveIteratorIterator::SELF_FIRST
-        );
+        $directoryIterator = new RecursiveDirectoryIterator($realPath, FilesystemIterator::SKIP_DOTS);
+        $iterator = new RecursiveIteratorIterator($directoryIterator, RecursiveIteratorIterator::SELF_FIRST);
 
         return new class($iterator) extends SplHeap {
             /**
@@ -184,12 +181,16 @@ final class Psr4Validator
             }
 
             /**
-             * @param SplFileInfo|mixed $item1
-             * @param SplFileInfo|mixed $item2
+             * @param SplFileInfo|mixed $value1
+             * @param SplFileInfo|mixed $value2
              */
-            protected function compare($item1, $item2): int
+            protected function compare($value1, $value2): int
             {
-                return \strcmp((string)$item2->getRealPath(), (string)$item1->getRealPath());
+                /**
+                 * @var SplFileInfo $value1
+                 * @var SplFileInfo $value2
+                 */
+                return \strcmp((string)$value2->getRealPath(), (string)$value1->getRealPath());
             }
         };
     }
@@ -204,9 +205,9 @@ final class Psr4Validator
         if ($actualNamespace !== $expectedNamespace) {
             $this->psr4Errors[$namespaceRoot][] =
                 [
-                    'fileInfo'          => $fileInfo->getRealPath(),
+                    'fileInfo' => $fileInfo->getRealPath(),
                     'expectedNamespace' => $expectedNamespace,
-                    'actualNamespace'   => $actualNamespace,
+                    'actualNamespace' => $actualNamespace,
                 ];
         }
     }
@@ -231,8 +232,8 @@ final class Psr4Validator
     private function expectedFileNamespace(string $absPathRoot, string $namespaceRoot, SplFileInfo $fileInfo): string
     {
         $relativePath = \substr($fileInfo->getPathname(), \strlen($absPathRoot));
-        $relativeDir  = \dirname($relativePath);
-        $relativeNs   = '';
+        $relativeDir = \dirname($relativePath);
+        $relativeNs = '';
         if ($relativeDir !== '.') {
             $relativeNs = \str_replace(
                 '/',
